@@ -148,7 +148,7 @@ public class KubernetesLauncher extends JNLPLauncher {
                 LOGGER.log(Level.INFO, "Waiting for Pod to be scheduled ({1}/{2}): {0}", new Object[]{podId, i, j});
                 listener.getLogger().printf("Waiting for Pod to be scheduled (%2$s/%3$s): %1$s", podId, i, j);
 
-                Thread.sleep(6000);
+                Thread.sleep(2000);
                 pod = client.pods().inNamespace(namespace).withName(podId).get();
                 if (pod == null) {
                     throw new IllegalStateException("Pod no longer exists: " + podId);
