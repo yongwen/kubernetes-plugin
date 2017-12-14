@@ -113,7 +113,7 @@ Either way it provides access to the following fields:
 * **name** The name of the pod.
 * **namespace** The namespace of the pod.
 * **label** The label of the pod.
-* **container** The container templates that are use to create the containers of the pod *(see below)*.
+* **containers** The container templates that are use to create the containers of the pod *(see below)*.
 * **serviceAccount** The service account of the pod.
 * **nodeSelector** The node selector of the pod.
 * **nodeUsageMode** Either 'NORMAL' or 'EXCLUSIVE', this controls whether Jenkins only schedules jobs with label expressions matching or use the node as much as possible.
@@ -326,7 +326,10 @@ It will spawn one executor and wait for sometime for the first executor to be fr
 Jenkins makes sure every executor it spawns is utilized to the maximum.
 If you want to override this behaviour and spawn an executor for each build in queue immediately without waiting,
 you can use these flags during Jenkins startup:
-`-Dhudson.slaves.NodeProvisioner.MARGIN=50 -Dhudson.slaves.NodeProvisioner.MARGIN0=0.85`
+
+    -Dhudson.slaves.NodeProvisioner.initialDelay=0
+    -Dhudson.slaves.NodeProvisioner.MARGIN=50
+    -Dhudson.slaves.NodeProvisioner.MARGIN0=0.85
 
 
 # Configuration on minikube
