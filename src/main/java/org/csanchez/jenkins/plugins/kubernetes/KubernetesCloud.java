@@ -25,10 +25,14 @@ import javax.servlet.ServletException;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
+import org.jenkinsci.plugins.kubernetes.credentials.OpenShiftBearerTokenCredentialImpl;
+import org.jenkinsci.plugins.kubernetes.credentials.OpenShiftTokenCredentialImpl;
+import org.jenkinsci.plugins.kubernetes.credentials.TokenProducer;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
+import com.cloudbees.plugins.credentials.Credentials;
 import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardCertificateCredentials;
@@ -44,6 +48,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.Util;
+import hudson.init.InitMilestone;
+import hudson.init.Initializer;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Label;
@@ -64,7 +70,7 @@ import jenkins.model.JenkinsLocationConfiguration;
 /**
  * Kubernetes cloud provider.
  *
- * Starts slaves in a Kubernetes cluster using defined Docker templates for each label.
+ * Starts agents in a Kubernetes cluster using defined Docker templates for each label.
  *
  * @author Carlos Sanchez carlos@apache.org
  */
@@ -77,6 +83,7 @@ public class KubernetesCloud extends Cloud {
 
     public static final String JNLP_NAME = "jnlp";
     /** label for all pods started by the plugin */
+    @Deprecated
     public static final Map<String, String> DEFAULT_POD_LABELS = ImmutableMap.of("jenkins", "slave");
 
     /** Default timeout for idle workers that don't correctly indicate exit. */
@@ -101,6 +108,7 @@ public class KubernetesCloud extends Cloud {
     private int retentionTimeout = DEFAULT_RETENTION_TIMEOUT_MINUTES;
     private int connectTimeout;
     private int readTimeout;
+    private Map<String, String> labels;
 
     private transient KubernetesClient client;
     private int maxRequestsPerHost;
@@ -305,6 +313,17 @@ public class KubernetesCloud extends Cloud {
         return connectTimeout;
     }
 
+    /**
+     * Labels for all pods started by the plugin
+     */
+    public Map<String, String> getLabels() {
+        return labels == null ? Collections.emptyMap() : labels;
+    }
+
+    public void setLabels(Map<String, String> labels) {
+        this.labels = labels;
+    }
+
     @DataBoundSetter
     public void setMaxRequestsPerHostStr(String maxRequestsPerHostStr) {
         try  {
@@ -348,7 +367,7 @@ public class KubernetesCloud extends Cloud {
 
     Map<String, String> getLabelsMap(Set<LabelAtom> labelSet) {
         ImmutableMap.Builder<String, String> builder = ImmutableMap.<String, String> builder();
-        builder.putAll(DEFAULT_POD_LABELS);
+        builder.putAll(getLabels());
         if (!labelSet.isEmpty()) {
             for (LabelAtom label: labelSet) {
                 builder.put(getIdForLabel(label), "true");
@@ -417,7 +436,7 @@ public class KubernetesCloud extends Cloud {
             templateNamespace = client.getNamespace();
         }
 
-        PodList slaveList = client.pods().inNamespace(templateNamespace).withLabels(DEFAULT_POD_LABELS).list();
+        PodList slaveList = client.pods().inNamespace(templateNamespace).withLabels(getLabels()).list();
         List<Pod> slaveListItems = slaveList.getItems();
 
         Map<String, String> labelsMap = getLabelsMap(template.getLabelSet());
@@ -495,6 +514,16 @@ public class KubernetesCloud extends Cloud {
             return "Kubernetes";
         }
 
+        @Initializer(before = InitMilestone.PLUGINS_STARTED)
+        public static void addAliases() {
+            Jenkins.XSTREAM2.addCompatibilityAlias(
+                    "org.csanchez.jenkins.plugins.kubernetes.OpenShiftBearerTokenCredentialImpl",
+                    OpenShiftBearerTokenCredentialImpl.class);
+            Jenkins.XSTREAM2.addCompatibilityAlias(
+                    "org.csanchez.jenkins.plugins.kubernetes.OpenShiftTokenCredentialImpl",
+                    OpenShiftTokenCredentialImpl.class);
+        }
+
         public FormValidation doTestConnection(@QueryParameter String name, @QueryParameter String serverUrl, @QueryParameter String credentialsId,
                                                @QueryParameter String serverCertificate,
                                                @QueryParameter boolean skipTlsVerify,
@@ -566,6 +595,9 @@ public class KubernetesCloud extends Cloud {
 
         if (maxRequestsPerHost == 0) {
             maxRequestsPerHost = DEFAULT_MAX_REQUESTS_PER_HOST;
+        }
+        if (labels == null) {
+            labels = DEFAULT_POD_LABELS;
         }
         return this;
     }
