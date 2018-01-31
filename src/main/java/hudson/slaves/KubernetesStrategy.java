@@ -35,8 +35,7 @@ import java.io.IOException;
 
 /**
  * The aggresive strategy for container cloud.
- * don't wait for slave to complete for any reason. i.e, provision whenever:
- *     queue_length > (available + connecting + plan)
+ * don't wait for slave to complete for any reason. i.e, provision whenever queue_length greater than (available + connecting + plan)
  *
  */
 @Extension @Symbol("kubernetes")
@@ -130,7 +129,7 @@ public class KubernetesStrategy extends NodeProvisioner.Strategy {
             }
         }
         else {
-            LOGGER.log(Level.INFO, "===== 22 ==== available >= queue, no need to provision new worker");
+            LOGGER.log(Level.INFO, "available >= queue, no need to provision new worker");
         }
 
         // if we reach here then the standard strategy obviously decided to do nothing, so let any other strategies
